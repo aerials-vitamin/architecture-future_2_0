@@ -1,0 +1,101 @@
+@startuml Контейнерная диаграмма
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+LAYOUT_TOP_DOWN()
+
+title Контейнерная диаграмма
+
+Person(doctor, "Врач", "Работает с пациентами и медицинскими данными")
+Person(analyst, "Бизнес-аналитик", "Анализирует данные")
+Person(patient, "Пациент", "Использует сервисы")
+
+System_Boundary(integration_layer, "Слой интеграции") {
+    Container(api_gateway, "API Gateway", "Kong", "Единая точка входа для всех API (аутентификация)")
+    Container(message_broker, "Брокер сообщений", "Apache Kafka", "Асинхронный обмен сообщениями")
+}
+
+System_Boundary(medical_domain, "Медицинский домен") {
+    Container(clinic_app, "Медицинское приложение", "React", "Интерфейс для работы врачей с пациентами")
+    Container(medical_api, "Медицинское API", "REST API", "API для работы с медицинскими данными")
+    Container(medical_db, "Медицинская БД", "PostgreSQL", "Медицинские карты, истории болезни")
+}
+
+System_Boundary(ai_domain, "ИИ-домен") {
+    Container(ai_service, "ИИ-сервисы", "Python/ML", "Диагностика, анализ медицинских данных")
+    Container(ai_model_store, "Хранилище моделей", "MLflow", "Версионирование и управление ML-моделями")
+}
+
+System_Boundary(fintech_domain, "Финтех-домен") {
+    Container(fintech_app, "Финтех-приложение", "Mobile/Web", "Банковские услуги для пациентов")
+    Container(fintech_api, "Финтех API", "REST API", "API банковских операций")
+    Container(fintech_db, "Финтех БД", "PostgreSQL", "Финансовые данные, кредиты, счета")
+}
+
+System_Boundary(data_platform, "Платформа данных") {
+    Container(data_lakehouse, "Data Lakehouse", "S3/Apache Iceberg", "Неструктурированные и структурированные данные для аналитики")
+    Container(etl_service, "ETL/ELT сервисы", "Apache Airflow", "Обработка и трансформация данных")
+}
+
+System_Boundary(analytics_domain, "Аналитический домен") {
+    Container(data_mart, "Витрина данных", "Web Portal", "Портал самообслуживания для аналитики")
+    Container(bi_service, "BI-сервис", "Apache Superset", "Конструктор отчетов и дашбордов")
+    Container(metrics_api, "Metrics API", "REST API", "API для получения метрик и KPI")
+}
+
+
+System_Boundary(shared_services, "Общие сервисы") {
+    Container(iam_service, "Iam сервис", "Keycloak", "Управление пользователями и доступом")
+    Container(notification_service, "Сервис уведомлений", "Go", "Отправка уведомлений")
+    Container(audit_service, "Сервис логгирования", "Prometheus", "Логирование и аудит операций")
+}
+
+' Взаимодействие пользователей
+Rel(doctor, clinic_app, "Использует")
+Rel(patient, fintech_app, "Использует")
+Rel(analyst, data_mart, "Анализирует данные")
+
+' Взаимодействие в медицинском домене
+Rel(clinic_app, medical_api, "API calls")
+Rel(medical_api, medical_db, "Читает/записывает")
+Rel(medical_api, ai_service, "Запрос диагностики")
+
+' Взаимодействие в финтех-домене
+Rel(fintech_app, fintech_api, "API calls")
+Rel(fintech_api, fintech_db, "Читает/записывает")
+
+' Взаимодействие с ИИ
+Rel(ai_service, ai_model_store, "Управление моделями")
+Rel(ai_service, medical_api, "Получает медицинские данные")
+
+' Интеграция через слой сообщений
+Rel(medical_api, message_broker, "Публикует события")
+Rel(fintech_api, message_broker, "Публикует события")
+Rel(ai_service, message_broker, "Подписывается на события")
+
+' Платформа данных
+Rel(message_broker, etl_service, "Потоки данных")
+Rel(etl_service, data_lakehouse, "Загружает данные")
+
+' Аналитика
+Rel(data_mart, metrics_api, "Запрос метрик")
+Rel(metrics_api, data_lakehouse, "Читает данные")
+Rel(bi_service, data_lakehouse, "Читает данные")
+Rel(analyst, bi_service, "Создает отчеты")
+
+' API Gateway
+Rel(clinic_app, api_gateway, "Через шлюз")
+Rel(fintech_app, api_gateway, "Через шлюз")
+Rel(data_mart, api_gateway, "Через шлюз")
+Rel(api_gateway, medical_api, "Маршрутизация")
+Rel(api_gateway, fintech_api, "Маршрутизация")
+Rel(api_gateway, metrics_api, "Маршрутизация")
+
+' Общие сервисы
+Rel(api_gateway, iam_service, "Аутентификация")
+Rel(medical_api, audit_service, "Лог")
+Rel(fintech_api, audit_service, "Лог")
+Rel(api_gateway, audit_service, "Лог")
+Rel(notification_service, message_broker, "Получает события")
+
+@enduml

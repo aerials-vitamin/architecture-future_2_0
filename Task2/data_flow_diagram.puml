@@ -1,0 +1,123 @@
+@startuml Data Flow Diagram
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title Data Flow Diagram
+
+skinparam backgroundColor White
+skinparam rectangleBackgroundColor LightBlue
+skinparam rectangleBorderColor DarkBlue
+skinparam arrowColor DarkBlue
+
+' Внешние участники
+rectangle "Врачи\n(Клиники)" as doctors #LightGreen
+rectangle "Пациенты" as patients #LightGreen  
+rectangle "Бизнес-аналитики" as analysts #LightGreen
+
+' Основные домены
+package "Медицинский домен" as medical_domain #LightBlue {
+    rectangle "Медицинские\nприложения" as medical_apps
+    rectangle "Медицинская БД\n(Карты, истории болезни)" as medical_db
+    rectangle "Медицинское API" as medical_api
+}
+
+package "ИИ-домен" as ai_domain #LightCyan {
+    rectangle "ИИ-сервисы\n(Диагностика)" as ai_services
+    rectangle "Хранилище\nML-моделей" as ml_models
+}
+
+package "Финтех-домен" as fintech_domain #LightGoldenRodYellow {
+    rectangle "Финтех-приложения\n(Банковские услуги)" as fintech_apps
+    rectangle "Финтех БД\n(Кредиты, счета)" as fintech_db
+    rectangle "Финтех API" as fintech_api
+}
+
+package "Слой интеграции" as integration_layer #Orange {
+    rectangle "API Gateway\n(Kong)" as api_gateway
+    rectangle "Брокер сообщений\n(Apache Kafka)" as message_broker
+}
+
+package "Платформа данных" as data_platform #Lavender {
+    rectangle "Data Lakehouse\n(S3/Apache Iceberg)" as data_lakehouse
+    rectangle "ETL/ELT сервисы\n(Apache Airflow)" as etl_services
+}
+
+package "Аналитический домен" as analytics_domain #LightPink {
+    rectangle "Витрина данных\n(Портал самообслуживания)" as data_mart
+    rectangle "BI-сервис\n(Apache Superset)" as bi_service
+    rectangle "Metrics API" as metrics_api
+}
+
+package "Общие сервисы" as shared_services #LightGray {
+    rectangle "IAM сервис\n(Keycloak)" as iam
+    rectangle "Сервис уведомлений" as notifications
+    rectangle "Сервис аудита\n(Prometheus)" as audit
+}
+
+' Потоки данных
+
+' Пользователи -> Домены
+doctors --> medical_apps : "Ввод медицинских\nданных"
+patients --> fintech_apps : "Банковские\nоперации"
+analysts --> data_mart : "Запросы-ответы\nотчетов"
+
+' Внутренние потоки между доменами
+medical_apps --> api_gateway : "API вызовы"
+fintech_apps --> api_gateway : "API вызовы"
+api_gateway --> medical_api : "Медицинские\nзапросы"
+api_gateway --> fintech_api : "Финансовые\nзапросы"
+
+' Взаимодействие с БД
+medical_api --> medical_db : "CRUD"
+fintech_api --> fintech_db : "CRUD"
+
+' ИИ интеграция
+medical_api --> ai_services : "Запрос-ответ\nдиагностики анализов"
+ai_services --> ml_models : "Загрузка\nмоделей"
+ai_services --> medical_api 
+
+' События в брокер сообщений
+medical_api --> message_broker : "События:\n- Новый пациент\n- Диагноз\n- Лечение"
+fintech_api --> message_broker : "События:\n- Платеж\n- Кредит\n- Счет"
+ai_services --> message_broker : "События:\n- Результат ИИ\n- Обновление модели"
+
+' Потоки в платформу данных
+message_broker --> etl_services : "Потоковые\nданные"
+medical_db --> etl_services : "Batch загрузка"
+fintech_db --> etl_services : "Batch загрузка"
+etl_services --> data_lakehouse : "Обогащенные\nданные"
+
+' Аналитические потоки
+data_lakehouse --> metrics_api : "Агрегированные\nметрики"
+data_lakehouse --> bi_service : "Данные для\nотчетов"
+data_mart --> metrics_api : "Запрос KPI"
+data_mart --> bi_service : "Конструирование\nотчетов"
+
+' Общие сервисы
+api_gateway --> iam : "Аутентификация"
+medical_api --> audit : "Лог"
+fintech_api --> audit : "Лог"
+etl_services --> audit : "Лог"
+message_broker --> notifications : "Уведомления"
+
+' Обратные потоки аналитики
+analysts --> bi_service : "Создание\nотчетов"
+data_mart --> analysts 
+
+note top of data_platform
+**Ключевые изменения архитектуры:**
+1. Замена монолитного DWH на Data Lakehouse
+2. Event-driven архитектура через Kafka
+3. Разделение на независимые домены
+4. API-first подход с единым шлюзом
+end note
+
+note bottom of integration_layer
+**Принципы интеграции:**
+- Асинхронный обмен через события
+- Единая точка входа (API Gateway)
+- Версионирование API
+- Мониторинг и логирование всех взаимодействий
+end note
+
+@enduml
